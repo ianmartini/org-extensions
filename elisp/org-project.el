@@ -24,12 +24,6 @@
 (defun project-message-no-ts (str &rest vars)
   (project-message-impl (apply #'format (cons str vars))))
 
-;; (defmacro project-message (str &rest vars)
-;;   `(project-message-impl (format (concat "[ " (ts) " ] " ,str) ,@vars)))
-;;
-;; (defmacro project-message-no-ts (str &rest vars)
-;;   `(project-message-impl (format ,str ,@vars)))
-
 ;; --
 
 (defstruct (project-sublist-struct (:conc-name sublist/))
