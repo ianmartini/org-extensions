@@ -1,0 +1,17 @@
+PROJECT  -*- mode: org; fill-column: 78 -*-
+
+* Tasks                                                               :tasks:
+*** Group 1
+***** Task A1                                                          :task:
+***** Task A2                                                          :task:
+***** Task A3                                                          :task:
+*** Group 2
+***** Task B1                                                          :task:
+***** Task B2                                                          :task:
+***** Task B3                                                          :task:
+*** Group 3
+***** Task C1                                                          :task:
+***** Task C2                                                          :task:
+***** Task C3                                                          :task:
+* Config
+#+STARTUP: outline hidestars odd
