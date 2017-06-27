@@ -1,0 +1,67 @@
+(require 'org)
+
+(defcustom ds-daily-schedule-dir (path *top* "daily-schedule")
+  "The directory where the daily schedule files are.")
+
+(defsubst ds-path (&rest paths)
+  (apply #'path ds-daily-schedule-dir paths))
+
+(defconst ods-daily-schedule-org (ds-path "daily-schedule.org"))
+(defconst ods-daily-schedule-template (ds-path "daily-schedule.template.org"))
+
+(defun ods-create-schedule-from-template (date)
+  (find-file ods-daily-schedule-template)
+  (switch-to-buffer "daily-schedule.template.org")
+  (save-excursion
+    (goto-char (point-min))
+    (while (search-forward "%TODAY%" nil t)
+      (replace-match date t t)))
+  (write-file ods-daily-schedule-org))
+
+(defun ods-open-daily-schedule ()
+  (interactive)
+  (let (date archive-date)
+    (setq date (format-time-string "%Y-%m-%d %a"))
+    (if (not (file-exists-p ods-daily-schedule-org))
+        (ods-create-schedule-from-template date)
+      (find-file ods-daily-schedule-org)
+      (save-excursion
+        (goto-char (point-min))
+        (unless (search-format (format "Schedule (%s)" date) nil t)
+          (if (not (re-search-forward "Schedule (\\([0-9]+-[0-9]+-[0-9]+\\)" nil t))
+              (error "Unable to find [Schedule (%%Y-%mm-%%d ...)]")
+            (write-file (ds-path (format "/archive/daily-schedule.%s.org" (match-string 1))))
+            (kill-buffer (current-buffer))))
+        (let ((buffer (get-buffer "daily-schedule.org")))
+          (when buffer (kill-buffer buffer)))
+        (ods-create-schedule-from-template date)))))
+
+(defun ods-new-daily-schedule-item ()
+  (interactive)
+  (let (input date time)
+    (setq date (format-time-string "%Y-%m-%d"))
+    (setq time (format-time-string "%H:%M"))
+    (setq input (read-from-minibuffer "New item: " (cons (format "[%s] New Item" time) 9)))
+    (when (string-match "\\[\\([0-9]+:[0-9]+\\)" input)
+      (setq time (match-string 1 input)))
+    (org-insert-heading-after-current)
+    (insert input)
+    (org-schedule nil (format "%s %s" date time))))
+
+(defvar sprint-offset 0)
+;; (setq sprint-offset -1)
+
+(when (not (member ods-daily-schedule-org org-agenda-files))
+  (push ods-daily-schedule-org org-agenda-files))
+
+(defun org-sprint-agenda ()
+  (interactive)
+  (let* ((now (current-time))
+         (day-of-week (nth 6 (decode-time now)))
+         (monday (time-add now (days-to-time (+ (- 1 day-of-week) (* 7 sprint-offset)))))
+         (monday-str (format-time-string "%Y-%m-%d" monday)))
+    (message monday-str)
+    (org-agenda-list 16 monday-str)
+    ))
+    
+(provide 'org-daily-schedule)

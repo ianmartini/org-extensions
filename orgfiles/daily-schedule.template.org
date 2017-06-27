@@ -1,0 +1,19 @@
+DAILY SCHEDULE -*- mode: org; fill-column: 78 -*-
+
+* Schedule (%TODAY%)
+  :PROPERTIES:
+  :VISIBILITY: children
+  :END:
+*** [08:00] Breakfast
+    SCHEDULED: <%TODAY% 08:00>
+*** [08:30] Work Item
+    SCHEDULED: <%TODAY% 08:30>
+*** [12:30] Lunch
+    SCHEDULED: <%TODAY% 12:30>
+*** [13:15] Work Item
+    SCHEDULED: <%TODAY% 12:30>
+*** [17:30] Leave Office
+    SCHEDULED: <2017-06-27 Tue 17:30>
+* Configuration
+#+STARTUP: outline hidestars odd
+
