@@ -3,6 +3,10 @@ PROJECT  -*- mode: org; fill-column: 78 -*-
 * Tasks                                                               :tasks:
 *** Group 1
 ***** Task A1                                                          :task:
+      :PROPERTIES:
+      :start-date: 2017-07-05
+      :days:     3
+      :END:
 ***** Task A2                                                          :task:
 ***** Task A3                                                          :task:
 *** Group 2

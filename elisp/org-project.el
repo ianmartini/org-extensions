@@ -57,9 +57,9 @@
 (defstruct (project-task-struct (:conc-name task/))
   parent
   name
-  start-time
-  end-time
-  calculated-end-time
+  start-date
+  end-date
+  calculated-end-date
   days
   dependency)
 
@@ -86,6 +86,27 @@
 
 (defun is-task-p ()
   (member "task" (org-get-local-tags)))
+
+(defsubst qs (str)
+  (concat "\"" str "\""))
+
+(defun project-set-details ()
+  (interactive)
+  (let (headline properties old-start-date start-date days)
+    (setq quoted-headline (qs (get-headline)))
+    (setq properties (org-entry-properties))
+    (setq old-start-date (cdr (assoc "start-date" properties)))
+    (setq days (or (cdr (assoc "days" properties)) "0"))
+    (message "properties are: %s" properties)
+    (setq start-date (org-read-date nil nil nil
+                                    (format "Start date for %s: " quoted-headline)
+                                    (org-time-string-to-time old-start-date)))
+    (setq days (read-from-minibuffer
+                (format "Days required for %s: " quoted-headline)
+                days))
+    (org-entry-put (point) "start-date" start-date)
+    (org-entry-put (point) "days" days)
+    ))
 
 (defun project-build-project-structure ()
   (interactive)
