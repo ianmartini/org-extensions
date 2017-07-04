@@ -119,21 +119,31 @@
     (setf (project/sublists *project*) (reverse (project/sublists *project*)))
     (project-message "*sublists: %s" (project/sublists *project*))))
 
-(defun project-set-details ()
+(defun project-set-date-and-days ()
   (interactive)
-  (let (headline properties old-start-date start-date days)
+  (let (quoted-headline properties orig-start-date days start-date)
     (setq quoted-headline (qs (get-headline)))
     (setq properties (org-entry-properties))
-    (setq old-start-date (cdr (assoc "start-date" properties)))
+    (setq orig-start-date (cdr (assoc "start-date" properties)))
     (setq days (or (cdr (assoc "days" properties)) "0"))
-    (message "properties are: %s" properties)
     (setq start-date (org-read-date nil nil nil
                                     (format "Start date for %s: " quoted-headline)
-                                    (org-time-string-to-time old-start-date)))
+                                    (org-time-string-to-time orig-start-date)))
     (setq days (read-from-minibuffer
                 (format "Days required for %s: " quoted-headline)
                 days))
     (org-entry-put (point) "start-date" start-date)
+    (org-entry-put (point) "days" days)))
+
+(defun project-set-days ()
+  (interactive)
+  (let (quoted-headline properties days)
+    (setq quoted-headline (qs (get-headline)))
+    (setq properties (org-entry-properties))
+    (setq days (or (cdr (assoc "days" properties)) "0"))
+    (setq days (read-from-minibuffer
+                (format "Days required for %s: " quoted-headline)
+                days))
     (org-entry-put (point) "days" days)))
 
 (defun project-set-dependency ()
@@ -144,5 +154,4 @@
                                          nil t)))
     (org-entry-put (point) "dependency" dependency)))
 
-;; (load (buffer-file-name))
 (provide 'project)
