@@ -37,6 +37,7 @@
 
 (defstruct (project-struct (:conc-name project/))
   all-tasks
+  all-task-names
   sublists)
 
 (defun project-struct-new ()
@@ -48,6 +49,7 @@
 
 (defun project-add-task (task)
   (let ((key (concat (task/parent task) "/" (task/name task))))
+    (push key (project/all-task-names *project*))
     (puthash (intern key) task (project/all-tasks *project*))))
 
 (defun project-get-task (parent name)
@@ -90,24 +92,6 @@
 (defsubst qs (str)
   (concat "\"" str "\""))
 
-(defun project-set-details ()
-  (interactive)
-  (let (headline properties old-start-date start-date days)
-    (setq quoted-headline (qs (get-headline)))
-    (setq properties (org-entry-properties))
-    (setq old-start-date (cdr (assoc "start-date" properties)))
-    (setq days (or (cdr (assoc "days" properties)) "0"))
-    (message "properties are: %s" properties)
-    (setq start-date (org-read-date nil nil nil
-                                    (format "Start date for %s: " quoted-headline)
-                                    (org-time-string-to-time old-start-date)))
-    (setq days (read-from-minibuffer
-                (format "Days required for %s: " quoted-headline)
-                days))
-    (org-entry-put (point) "start-date" start-date)
-    (org-entry-put (point) "days" days)
-    ))
-
 (defun project-build-project-structure ()
   (interactive)
   (let (parent sublist headline tags)
@@ -131,7 +115,34 @@
            (setq sublist nil))))
        
      "+tasks" 'file)
+    (setf (project/all-task-names *project*) (reverse (project/all-task-names *project*)))
     (setf (project/sublists *project*) (reverse (project/sublists *project*)))
     (project-message "*sublists: %s" (project/sublists *project*))))
 
+(defun project-set-details ()
+  (interactive)
+  (let (headline properties old-start-date start-date days)
+    (setq quoted-headline (qs (get-headline)))
+    (setq properties (org-entry-properties))
+    (setq old-start-date (cdr (assoc "start-date" properties)))
+    (setq days (or (cdr (assoc "days" properties)) "0"))
+    (message "properties are: %s" properties)
+    (setq start-date (org-read-date nil nil nil
+                                    (format "Start date for %s: " quoted-headline)
+                                    (org-time-string-to-time old-start-date)))
+    (setq days (read-from-minibuffer
+                (format "Days required for %s: " quoted-headline)
+                days))
+    (org-entry-put (point) "start-date" start-date)
+    (org-entry-put (point) "days" days)))
+
+(defun project-set-dependency ()
+  (interactive)
+  (project-build-project-structure)
+  (let ((dependency (ido-completing-read "Dependency: "
+                                         (project/all-task-names *project*)
+                                         nil t)))
+    (org-entry-put (point) "dependency" dependency)))
+
+;; (load (buffer-file-name))
 (provide 'project)
