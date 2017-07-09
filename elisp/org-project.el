@@ -73,18 +73,8 @@
 
 ;; ---
 
-(defun get-kv (key list)
-  (let (retval)
-    (while list
-      (if (not (eq key (car list)))
-          (setq list (cdr list))
-        (setq retval (cons (car list) (cadr list)))
-        (setq list nil)))
-    retval))
-
 (defun get-headline ()
-  (cdr (get-kv :raw-value
-               (cadr (org-element-headline-parser (point-max))))))
+  (plist-get (cadr (org-element-headline-parser (point-max))) :raw-value))
 
 (defun is-task-p ()
   (member "task" (org-get-local-tags)))
