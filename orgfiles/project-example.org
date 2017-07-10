@@ -1,21 +1,51 @@
 PROJECT  -*- mode: org; fill-column: 78 -*-
 
 * Tasks                                                               :tasks:
+  :PROPERTIES:
+  :VISIBILITY: children
+  :END:
 *** Group 1
 ***** Task A1                                                          :task:
       :PROPERTIES:
-      :start-date: 2017-07-05
+      :start-date: 2017-07-04
       :days:     3
       :END:
 ***** Task A2                                                          :task:
+      :PROPERTIES:
+      :days:     5
+      :END:
 ***** Task A3                                                          :task:
+      :PROPERTIES:
+      :days:     12
+      :END:
 *** Group 2
 ***** Task B1                                                          :task:
+      :PROPERTIES:
+      :start-date: 2017-07-10
+      :days:     1
+      :END:
 ***** Task B2                                                          :task:
+      :PROPERTIES:
+      :dependency: Group 1/Task A2
+      :days:     3
+      :END:
 ***** Task B3                                                          :task:
+      :PROPERTIES:
+      :days:     2
+      :END:
 *** Group 3
 ***** Task C1                                                          :task:
+      :PROPERTIES:
+      :days:     2
+      :start-date: 2017-07-10
+      :END:
 ***** Task C2                                                          :task:
+      :PROPERTIES:
+      :days:     2
+      :END:
 ***** Task C3                                                          :task:
+      :PROPERTIES:
+      :days:     2
+      :END:
 * Config
 #+STARTUP: outline hidestars odd

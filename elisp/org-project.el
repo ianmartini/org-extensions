@@ -47,21 +47,22 @@
 
 (defvar *project* (project-struct-new))
 
+(defun project-task-fullname (task)
+  (concat (task/parent task) "/" (task/name task)))
+
 (defun project-add-task (task)
-  (let ((key (concat (task/parent task) "/" (task/name task))))
+  (let ((key (project-task-fullname task)))
     (push key (project/all-task-names *project*))
     (puthash (intern key) task (project/all-tasks *project*))))
 
-(defun project-get-task (parent name)
-  (gethash (intern (concat parent "/" name))
-           (project/all-tasks *project*)))
+(defun project-get-task (fullname)
+  (gethash (intern fullname) (project/all-tasks *project*)))
 
 (defstruct (project-task-struct (:conc-name task/))
   parent
   name
   start-date
   end-date
-  calculated-end-date
   days
   dependency)
 
@@ -86,15 +87,21 @@
   (interactive)
   (let (parent sublist headline tags)
     (setq *project* (project-struct-new))
-    (org-map-entries
 
+    (org-map-entries
      (lambda ()
        (setq headline (get-headline))
        (project-message "headline: %s" headline)
 
        (if (is-task-p)
-           (let ((task (project-task-new parent headline)))
+           (let ((task (project-task-new parent headline)) days)
+             (setf (task/start-date task) (org-entry-get (point) "start-date"))
+             (setf (task/dependency task) (org-entry-get (point) "dependency"))
+
+             (setq days (org-entry-get (point) "days"))
+             (setf (task/days task) (if days (string-to-number days) nil))
              (project-add-task task)
+
              (unless sublist
                (setq sublist (project-sublist-struct-new parent))
                (push sublist (project/sublists *project*)))
@@ -103,26 +110,96 @@
          (when sublist
            (setf (sublist/tasks sublist) (reverse (sublist/tasks sublist)))
            (setq sublist nil))))
-       
      "+tasks" 'file)
+
+    ;; Reverse the final set of tasks
+    (when sublist (setf (sublist/tasks sublist) (reverse (sublist/tasks sublist))))
+    
     (setf (project/all-task-names *project*) (reverse (project/all-task-names *project*)))
     (setf (project/sublists *project*) (reverse (project/sublists *project*)))
     (project-message "*sublists: %s" (project/sublists *project*))))
 
-(defun project-set-date-and-days ()
+(defun project-date-add-days (date days)
+  "Add 'days' number of weekdays to 'date'. E.g. 12 days is 2 weeks and 2 days.
+Ensure that the result is always a weekday.
+This means that anything landing on Saturday or Sunday will be moved to the next Monday."
+  (unless date
+    (error "(project-date-add-days ...) invalid date"))
+  (let (new-time)
+    (when (>= days 5)
+      (setq days (+ (mod days 5) (* 7 (floor days 5)))))
+    (setq new-time (time-add (org-time-string-to-time date)
+                             (seconds-to-time (* days 3600 24))))
+    (let ((weekday (string-to-number (format-time-string "%u" new-time))))
+      (when (> weekday 5)
+        (setq new-time (time-add new-time
+                                 (seconds-to-time (* 3600 24 (- 2 (mod weekday 2))))))))
+    (format-time-string "%Y-%m-%d" new-time)))
+
+(defun error-if-days-null (task days)
+  (unless days (error "task [%s] does not have a 'days' property"
+                      (project-task-fullname task))))
+
+(defun project-set-dependent-dates (task)
+  (let (dependency dependency-days dependency-start-date)
+    (setq dependency (project-get-task (task/dependency task)))
+    (setq dependency-days (task/days dependency))
+    (error-if-days-null dependency dependency-days)
+    (setq dependency-start-date (task/start-date dependency))
+    (if (not dependency-start-date)
+        nil
+      (setf (task/start-date task)
+            (project-date-add-days dependency-start-date (1+ dependency-days)))
+      (setf (task/end-date task)
+            (project-date-add-days (task/start-date task) days))))
+  t)
+
+(defun project-calculate-dates ()
   (interactive)
+  (let ((continue t) changed date end-date)
+    (while continue
+      (setq changed nil)
+      (dolist (sublist (project/sublists *project*))
+        (setq date nil)
+
+        (dolist (task (sublist/tasks sublist))
+          (setq days (task/days task))
+          (error-if-days-null task days)
+
+          (if (and (task/dependency task) (not (task/end-date task)))
+              (setq changed (project-set-dependent-dates task))
+            (if date
+                (unless (task/start-date task)
+                  (setf (task/start-date task) date)
+                  (setq changed t))
+              (setq date (task/start-date task)))
+            (when (and (not (task/end-date task)) date)
+              (setf (task/end-date task) (project-date-add-days date days))
+              (setq changed t)))
+
+          (when changed ;; DEBUG
+            (project-message "{{{%s}}} %s" date task))
+          (when (task/end-date task)
+            (setq date (project-date-add-days (task/end-date task) 1)))))
+
+      (unless changed (setq continue nil)))))
+
+(defun project-set-date-and-days (prefix)
+  (interactive "P")
   (let (quoted-headline properties orig-start-date days start-date)
     (setq quoted-headline (qs (get-headline)))
     (setq properties (org-entry-properties))
-    (setq orig-start-date (cdr (assoc "start-date" properties)))
-    (setq days (or (cdr (assoc "days" properties)) "0"))
-    (setq start-date (org-read-date nil nil nil
-                                    (format "Start date for %s: " quoted-headline)
-                                    (org-time-string-to-time orig-start-date)))
+    (if (not prefix)
+        (org-entry-delete (point) "start-date")
+      (setq orig-start-date (cdr (assoc "start-date" properties)))
+      (setq start-date (org-read-date nil nil nil
+                                      (format "Start date for %s: " quoted-headline)
+                                      (if (not orig-start-date) nil
+                                        (org-time-string-to-time orig-start-date))))
+      (org-entry-put (point) "start-date" start-date))
     (setq days (read-from-minibuffer
                 (format "Days required for %s: " quoted-headline)
-                days))
-    (org-entry-put (point) "start-date" start-date)
+                (or (cdr (assoc "days" properties)) "0")))
     (org-entry-put (point) "days" days)))
 
 (defun project-set-days ()
@@ -143,5 +220,13 @@
                                          (project/all-task-names *project*)
                                          nil t)))
     (org-entry-put (point) "dependency" dependency)))
+
+;; Key map
+
+(defvar project-keymap (make-sparse-keymap))
+(define-key project-keymap "d" 'project-set-date-and-days)
+(define-key project-keymap "p" 'project-set-dependency)
+
+(define-key org-mode-map (kbd "<f2> p") project-keymap)
 
 (provide 'project)
