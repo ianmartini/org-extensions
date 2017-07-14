@@ -47,5 +47,8 @@ PROJECT  -*- mode: org; fill-column: 78 -*-
       :PROPERTIES:
       :days:     2
       :END:
+* Schedule
+#+BEGIN: project-schedule
+#+END:
 * Config
 #+STARTUP: outline hidestars odd

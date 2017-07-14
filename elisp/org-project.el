@@ -94,11 +94,12 @@
        (project-message "headline: %s" headline)
 
        (if (is-task-p)
-           (let ((task (project-task-new parent headline)) days)
-             (setf (task/start-date task) (org-entry-get (point) "start-date"))
-             (setf (task/dependency task) (org-entry-get (point) "dependency"))
+           (let ((task (project-task-new parent headline)) properties days)
+             (setq properties (org-entry-properties))
+             (setf (task/start-date task) (cdr (assoc "start-date" properties)))
+             (setf (task/dependency task) (cdr (assoc "dependency" properties)))
 
-             (setq days (org-entry-get (point) "days"))
+             (setq days (cdr (assoc "days" properties)))
              (setf (task/days task) (if days (string-to-number days) nil))
              (project-add-task task)
 
@@ -149,9 +150,10 @@ This means that anything landing on Saturday or Sunday will be moved to the next
     (if (not dependency-start-date)
         nil
       (setf (task/start-date task)
-            (project-date-add-days dependency-start-date (1+ dependency-days)))
+            (project-date-add-days
+             (project-date-add-days dependency-start-date dependency-days) 1))
       (setf (task/end-date task)
-            (project-date-add-days (task/start-date task) days))))
+            (project-date-add-days (task/start-date task) (1- days)))))
   t)
 
 (defun project-calculate-dates ()
@@ -174,11 +176,9 @@ This means that anything landing on Saturday or Sunday will be moved to the next
                   (setq changed t))
               (setq date (task/start-date task)))
             (when (and (not (task/end-date task)) date)
-              (setf (task/end-date task) (project-date-add-days date days))
+              (setf (task/end-date task) (project-date-add-days date (1- days)))
               (setq changed t)))
 
-          (when changed ;; DEBUG
-            (project-message "{{{%s}}} %s" date task))
           (when (task/end-date task)
             (setq date (project-date-add-days (task/end-date task) 1)))))
 
@@ -221,12 +221,49 @@ This means that anything landing on Saturday or Sunday will be moved to the next
                                          nil t)))
     (org-entry-put (point) "dependency" dependency)))
 
+(defun project-days-str (days)
+  (if (= 1 days) "1 day " (format "%s days" days)))
+
+(defvar project-dblock-pos)
+
+(defun org-dblock-write:project-schedule (params)
+  (setq project-dblock-pos (point))
+  (dolist (sublist (project/sublists *project*))
+    (insert "*** " (sublist/parent sublist))
+    (insert "\n    :PROPERTIES:")
+    (insert "\n    :VISIBILITY: children")
+    (insert "\n    :END:\n")
+    (dolist (task (sublist/tasks sublist))
+      (let (start-date)
+        (setq start-date
+              (format-time-string "%Y-%m-%d %a"
+                                  (org-time-string-to-time (task/start-date task))))
+        (insert (format "***** (%s / %s) %s\n"
+                        (project-days-str (task/days task)) start-date (task/name task)))
+        (org-deadline nil (task/end-date task)))))
+  (insert "*** [END SCHEDULE]"))
+
+(defun project-update-schedule ()
+  (interactive)
+  (project-build-project-structure)
+  (project-calculate-dates)
+  (org-update-all-dblocks)
+  (goto-char project-dblock-pos)
+  (outline-up-heading project-dblock-pos)
+  (save-excursion
+    (hide-subtree)
+    (show-children)
+    (while (and (outline-next-heading)
+                (not (equal (get-headline) "[END SCHEDULE]")))
+      (show-children))))
+
 ;; Key map
 
 (defvar project-keymap (make-sparse-keymap))
 (define-key project-keymap "d" 'project-set-date-and-days)
 (define-key project-keymap "p" 'project-set-dependency)
+(define-key project-keymap "s" 'project-update-schedule)
 
-(define-key org-mode-map (kbd "<f2> p") project-keymap)
+(define-key org-mode-map (kbd "C-c p") project-keymap)
 
 (provide 'project)
