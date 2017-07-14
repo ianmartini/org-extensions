@@ -120,22 +120,24 @@
     (setf (project/sublists *project*) (reverse (project/sublists *project*)))
     (project-message "*sublists: %s" (project/sublists *project*))))
 
-(defun project-date-add-days (date days)
+(defun project-date-add-days (date &rest days-args)
   "Add 'days' number of weekdays to 'date'. E.g. 12 days is 2 weeks and 2 days.
 Ensure that the result is always a weekday.
 This means that anything landing on Saturday or Sunday will be moved to the next Monday."
   (unless date
     (error "(project-date-add-days ...) invalid date"))
-  (let (new-time)
-    (when (>= days 5)
-      (setq days (+ (mod days 5) (* 7 (floor days 5)))))
-    (setq new-time (time-add (org-time-string-to-time date)
-                             (seconds-to-time (* days 3600 24))))
-    (let ((weekday (string-to-number (format-time-string "%u" new-time))))
-      (when (> weekday 5)
-        (setq new-time (time-add new-time
-                                 (seconds-to-time (* 3600 24 (- 2 (mod weekday 2))))))))
-    (format-time-string "%Y-%m-%d" new-time)))
+  (dolist (days days-args)
+    (let (new-time)
+      (when (>= days 5)
+        (setq days (+ (mod days 5) (* 7 (floor days 5)))))
+      (setq new-time (time-add (org-time-string-to-time date)
+                               (seconds-to-time (* days 3600 24))))
+      (let ((weekday (string-to-number (format-time-string "%u" new-time))))
+        (when (> weekday 5)
+          (setq new-time (time-add new-time
+                                   (seconds-to-time (* 3600 24 (- 2 (mod weekday 2))))))))
+      (setq date (format-time-string "%Y-%m-%d" new-time))))
+  date)
 
 (defun error-if-days-null (task days)
   (unless days (error "task [%s] does not have a 'days' property"
@@ -150,8 +152,7 @@ This means that anything landing on Saturday or Sunday will be moved to the next
     (if (not dependency-start-date)
         nil
       (setf (task/start-date task)
-            (project-date-add-days
-             (project-date-add-days dependency-start-date dependency-days) 1))
+            (project-date-add-days dependency-start-date dependency-days 1))
       (setf (task/end-date task)
             (project-date-add-days (task/start-date task) (1- days)))))
   t)
